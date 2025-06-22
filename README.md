@@ -21,7 +21,6 @@ Este es un proyecto en Python que implementa un chatbot legal usando **FastAPI**
 
 ```bash
 git clone https://github.com/Karina1014/Chatbot-Leyes.git
-cd tu_repositorio
 ```
 
 ### Crear entorno virtual
