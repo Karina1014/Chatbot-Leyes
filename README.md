@@ -6,7 +6,7 @@ Este es un proyecto en Python que implementa un chatbot legal usando **FastAPI**
 
 ## 🚀 Tecnologías utilizadas
 
-- Python 3.8+
+- Python 3.12+
 - FastAPI
 - Qdrant
 - Google Generative AI (Gemini)
