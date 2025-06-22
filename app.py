@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
 from docx import Document
+import fitz  # PyMuPDF
 from dotenv import load_dotenv
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
@@ -39,7 +40,7 @@ qdrant_client = QdrantClient(
 
 # === Constantes de la app ===
 UPLOAD_FOLDER = "docs_upload"
-COLLECTION_NAME = "documentos_qdrant"
+COLLECTION_NAME = "codigo_ninez_y_adolescencia_qdrant"
 CHUNK_SIZE = 500
 MODEL_DIM = 384
 EXCEL_PATH = "registro_chat.xlsx"
@@ -64,29 +65,37 @@ def inicializar_qdrant():
         vectors_config=VectorParams(size=MODEL_DIM, distance=Distance.COSINE)
     )
 
-def docx_a_chunks(file_path: str, chunk_size: int = CHUNK_SIZE):
-    doc = Document(file_path)
-    texto = "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
+# extrae texto de pdf y lo divide en fragmentos
+def pdf_a_chunks(file_path: str, chunk_size: int = CHUNK_SIZE):
+    texto = ""
+    with fitz.open(file_path) as doc:
+        for page in doc:
+            texto += page.get_text().strip() + "\n"
+
+    texto = texto.strip()
     chunks = [texto[i:i + chunk_size] for i in range(0, len(texto), chunk_size)]
     vectores = model_embeddings.encode(chunks)
     return chunks, vectores
 
 def construir_prompt(contexto: str, pregunta: str) -> str:
     return f"""
-Eres un asistente que responde preguntas usando SOLO la información del contexto proporcionado.
+Eres un juez imparcial, justo y altamente capacitado en derecho.
 
-Responde con un lenguaje natural, claro, profesional y bien organizado.
+Debes analizar un caso basándote únicamente en el contenido legal proporcionado en el contexto, el cual corresponde a leyes oficiales. No puedes inventar leyes ni aplicar criterios personales. Tu única fuente de verdad es el contexto legal.
 
-Responde de forma clara, profesional y organizada, SIN usar ningún formato Markdown (como asteriscos, negritas, listas, ni saltos de línea especiales).
+Tu objetivo es emitir un juicio razonado, imparcial y bien estructurado que responda a la situación planteada.
 
-Usa texto plano, separando secciones con punto y seguido o punto y aparte solamente. No uses viñetas, ni símbolos especiales. Usa solo texto simple.
+Analiza la situación presentada, identifica qué normas aplican y explica por qué, usando los artículos del contexto. Emite un veredicto final claro al final de tu respuesta.
 
-Contexto:
+No uses formato Markdown, listas ni símbolos especiales. Usa lenguaje claro y legal, con texto plano y bien organizado.
+
+Contexto legal:
 \"\"\"{contexto}\"\"\"
 
+Hechos del caso:
 Pregunta: {pregunta}
 
-Respuesta completa y bien formateada:
+Respuesta del juez (razonamiento jurídico + veredicto final):
 """
 
 def guardar_en_excel(pregunta: str, respuesta: str, path: str = EXCEL_PATH):
@@ -105,17 +114,17 @@ def guardar_en_excel(pregunta: str, respuesta: str, path: str = EXCEL_PATH):
     wb.save(path)
 
 # === Endpoints ===
-
-@app.post("/documento/subir", summary="Subir documento .docx y cargar a Qdrant")
+# Subir docuemento PDF y cargar a Qdrant
+@app.post("/documento/subir", summary="Subir documento PDF y cargar a Qdrant")
 async def subir_documento(file: UploadFile = File(...)):
-    if not file.filename.endswith(".docx"):
-        raise HTTPException(status_code=400, detail="Solo se aceptan archivos .docx")
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Solo se aceptan archivos .pdf")
 
     ruta = os.path.join(UPLOAD_FOLDER, file.filename)
     with open(ruta, "wb") as f:
         f.write(await file.read())
 
-    chunks, vectores = docx_a_chunks(ruta)
+    chunks, vectores = pdf_a_chunks(ruta)
     inicializar_qdrant()
 
     puntos = [
