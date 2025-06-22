@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
 import google.generativeai as genai
+from datetime import datetime
 import os
 
 # === Cargar configuración de entorno y validar ===
@@ -107,10 +108,13 @@ def guardar_en_excel(pregunta: str, respuesta: str, path: str = EXCEL_PATH):
         ws = wb.active
         ws[get_column_letter(1) + "1"] = "Pregunta"
         ws[get_column_letter(2) + "1"] = "Respuesta"
+        ws[get_column_letter(3) + "1"] = "tiempo"
 
     fila = ws.max_row + 1
+    segundos_actuales = datetime.now().strftime("%S")
     ws[f"A{fila}"] = pregunta
     ws[f"B{fila}"] = respuesta
+    ws[f"C{fila}"] = segundos_actuales
     wb.save(path)
 
 # === Endpoints ===
