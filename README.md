@@ -33,3 +33,7 @@ python -m venv venv
 venv\Scripts\activate
 ```
 
+### Instalar fichero Requirements
+```
+pip install -r requirements.txt
+```
